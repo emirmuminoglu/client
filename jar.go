@@ -3,6 +3,7 @@ package client
 import (
 	http "github.com/valyala/fasthttp"
 	"sync"
+	"time"
 )
 
 type Jar struct {
@@ -40,4 +41,98 @@ func (j *Jar) ReleaseCookie(key string){
 		delete(j.cookies, key)
 	}
 
+}
+
+func (j *Jar) MarshalJSON() ([]byte, error){
+
+	cookies, err := j.makeEncodable()
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := cookies.MarshalJSON()
+
+	return data, err
+}
+
+func (j *Jar) UnmarshalJSON(data []byte) error {
+	cooks := cookies{}
+
+	err := cooks.UnmarshalJSON(data)
+	if err != nil {
+		return err 
+	}
+
+	err = j.decode(cooks)
+
+	return err
+}
+
+func (j *Jar) decode( cooks cookies ) error {
+	for _, v := range cooks{
+		expire := new(time.Time)
+		err := expire.UnmarshalText([]byte(v.Expire))
+		if err != nil {
+			return err
+		}
+
+		c := http.AcquireCookie()
+		
+		c.SetKey(v.Key)
+		c.SetValue(v.Value)
+		c.SetExpire(*expire)
+		c.SetMaxAge(v.MaxAge)
+		c.SetDomain(v.Domain)
+		c.SetPath(v.Path)
+		c.SetHTTPOnly(v.HTTPOnly)
+		c.SetSecure(v.Secure)
+		c.SetSameSite(v.SameSite)
+
+		j.cookies[v.Key] = c
+	}
+	return nil	
+}
+
+func (j *Jar) makeEncodable() (cookies, error) {
+	cookies := cookies{}
+
+	for _, v := range j.cookies {
+		expire, err := v.Expire().MarshalText()
+		if err != nil {
+			return nil, err
+		}
+
+		c := cookie{
+			Key: string(v.Key()),
+			Value: string(v.Value()),
+			Expire: string(expire), 
+			MaxAge: v.MaxAge(),
+			Domain: string(v.Domain()),
+			Path: string(v.Path()),
+			HTTPOnly: v.HTTPOnly(),
+			Secure: v.Secure(),
+			SameSite: v.SameSite(),
+		}
+
+		cookies = append(cookies, c)
+	}
+	
+	return cookies, nil
+}
+
+//easyjson:json
+type cookies []cookie
+
+type cookie struct {
+	Key string `json:"key"`
+	Value string `json:"value"`
+	Expire string `json:"time"`
+	
+	MaxAge int `json:"max_age"`
+	Domain string `json:"domain"`
+	Path string `json:"path"`
+
+	HTTPOnly bool `json:"http_only"`
+	Secure bool `json:"secure"`
+	SameSite http.CookieSameSite `json:"same_site"`
 }
