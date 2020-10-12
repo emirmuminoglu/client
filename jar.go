@@ -4,6 +4,8 @@ import (
 	http "github.com/valyala/fasthttp"
 	"sync"
 	"time"
+	"encoding/gob"
+	"bytes"
 )
 
 type Jar struct {
@@ -43,6 +45,7 @@ func (j *Jar) ReleaseCookie(key string){
 
 }
 
+
 func (j *Jar) MarshalJSON() ([]byte, error){
 
 	cookies, err := j.makeEncodable()
@@ -64,6 +67,35 @@ func (j *Jar) UnmarshalJSON(data []byte) error {
 	}
 
 	err = j.decode(cooks)
+
+	return err
+}
+
+func (j *Jar) EncodeGOB() ([]byte, error) {
+	cookies, err := j.makeEncodable()
+	if err != nil {
+		return nil, err 
+	}
+
+	var buf bytes.Buffer
+
+	err = gob.NewEncoder(&buf).Encode(cookies)
+
+	return buf.Bytes(), err
+}
+
+func (j *Jar) DecodeGOB(data []byte) error{
+	cooks := &cookies{}
+	
+	var buf bytes.Buffer
+	buf.Write(data)
+	
+	err := gob.NewDecoder(&buf).Decode(cooks)
+	if err != nil {
+		return err
+	}
+
+	err = j.decode(*cooks)
 
 	return err
 }
