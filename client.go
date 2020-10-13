@@ -5,22 +5,31 @@ import (
 )
 
 type Client struct {
-	Jar *Jar	
+	Jar *Jar
+	config *Config
+	client *http.Client	
 }
 	
-func NewRequest(method string, url string, body []byte) *http.Request{
-	req := http.AcquireRequest()
+type Config struct {
+	BaseURL string
 
-	req.SetBody(body)
-	req.SetRequestURI(url)
-	req.Header.SetMethod(method)
-
-	return req
 }
 
-func (c *Client) Do(req *http.Request) *http.Response{
-	resp := http.AcquireResponse()
-	defer http.ReleaseRequest(req)
+func New() *Client {
+	return &Client{
+		client: &http.Client{},		
+	}
+}
+
+func NewWithConfig(config *Config) *Client {
+	return &Client{
+		client: &http.Client{},
+		config: config,
+	}
+}
+
+func (c *Client) NewRequest(method string, url string, body []byte) *http.Request{
+	req := http.AcquireRequest()
 
 	if c.Jar != nil {
 		c.Jar.mu.Lock()
@@ -32,7 +41,18 @@ func (c *Client) Do(req *http.Request) *http.Response{
 		c.Jar.mu.Unlock()
 	}
 
-	http.Do(req, resp)
+	req.SetBody(body)
+	req.SetRequestURI(c.buildURL(url))
+	req.Header.SetMethod(method)
+
+	return req
+}
+
+func (c *Client) Do(req *http.Request) *http.Response{
+	resp := http.AcquireResponse()
+	defer http.ReleaseRequest(req)
+
+	c.client.Do(req, resp)
 
 	if c.Jar != nil {
 		c.Jar.mu.Lock()
@@ -52,7 +72,16 @@ func (c *Client) Do(req *http.Request) *http.Response{
 }
 
 func (c *Client) Get(url string) *http.Response {
-	req := NewRequest("GET", url, nil)
+	req := c.NewRequest("GET", url, nil)
 
 	return c.Do(req)
+}
+
+func (c *Client) buildURL(endpoint string) string {
+	if c.config == nil {
+		return endpoint
+	}
+
+	return c.config.BaseURL + endpoint 
+
 }
