@@ -50,3 +50,9 @@ func (c *Client) Do(req *http.Request) *http.Response{
 
 	return resp
 }
+
+func (c *Client) Get(url string) *http.Response {
+	req := NewRequest("GET", url, nil)
+
+	return c.Do(req)
+}
