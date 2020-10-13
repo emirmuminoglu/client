@@ -13,7 +13,7 @@ func NewRequest(method string, url string, body []byte) *http.Request{
 
 	req.SetBody(body)
 	req.SetRequestURI(url)
-	req.Header.SetMethod("GET")
+	req.Header.SetMethod(method)
 
 	return req
 }
