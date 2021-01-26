@@ -31,19 +31,21 @@ type Option struct {
 }
 
 func BasicAuth(username, password string) *Option {
-	return &Option{
-		Transform: func(req *http.Request) {
-			toEncode := []byte(username + ":" + password)
+	opt := AcquireOption()
+	opt.Transform = func(req *http.Request) {
+		toEncode := []byte(username + ":" + password)
 
-			req.Header.Add(http.HeaderAuthorization, basic+base64.StdEncoding.EncodeToString(toEncode))
-		},
+		req.Header.Set(http.HeaderAuthorization, basic+base64.StdEncoding.EncodeToString(toEncode))
 	}
+
+	return opt
 }
 
 func JSON() *Option {
-	return &Option{
-		Transform: func(req *http.Request) {
-			req.Header.Add(http.HeaderContentType, jsonContentType)
-		},
+	opt := AcquireOption()
+	opt.Transform = func(req *http.Request) {
+		req.Header.Set(http.HeaderContentType, jsonContentType)
 	}
+	
+	return opt
 }
